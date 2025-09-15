@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Video Recorder</title>
+</head>
+<body>
+  <h2>Record and Send to Telegram</h2>
+
+  <video id="preview" autoplay muted playsinline style="width: 320px; height: 240px; border: 1px solid black;"></video>
+  <br><br>
+
+  <button id="startBtn">Start Recording</button>
+  <button id="stopBtn" disabled>Stop Recording</button>
+  <button id="sendBtn" disabled>Send to Telegram</button>
+
+  <script>
+    let mediaRecorder;
+    let recordedChunks = [];
+    let recordedBlob = null;
+
+    async function initCamera() {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      document.getElementById("preview").srcObject = stream;
+
+      mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+
+      mediaRecorder.ondataavailable = e => {
+        if (e.data.size > 0) recordedChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        recordedBlob = new Blob(recordedChunks, { type: "video/webm" });
+        document.getElementById("sendBtn").disabled = false;
+      };
+    }
+
+    document.getElementById("startBtn").onclick = async () => {
+      recordedChunks = [];
+      await initCamera();
+      mediaRecorder.start();
+      document.getElementById("startBtn").disabled = true;
+      document.getElementById("stopBtn").disabled = false;
+    };
+
+    document.getElementById("stopBtn").onclick = () => {
+      mediaRecorder.stop();
+      mediaRecorder.stream.getTracks().forEach(track => track.stop());
+      document.getElementById("stopBtn").disabled = true;
+      document.getElementById("startBtn").disabled = false;
+    };
+
+    document.getElementById("sendBtn").onclick = async () => {
+      if (!recordedBlob) return;
+      const formData = new FormData();
+      formData.append("video", recordedBlob, "recording.webm");
+
+      try {
+        const res = await fetch("/upload-to-telegram", {
+          method: "POST",
+          body: formData
+        });
+        alert(await res.text());
+      } catch (err) {
+        console.error(err);
+        alert("❌ Error sending video");
+      }
+    };
+  </script>
+</body>
+</html>
